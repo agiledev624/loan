@@ -1193,6 +1193,42 @@ contract MapleLoanInternals_GetCollateralRequiredForTests is TestUtils {
 
 }
 
+contract MapleLoanInternals_ProposeNewTermsTests is TestUtils {
+
+    MapleLoanInternalsHarness internal _loan;
+    // mock of refinancer?
+
+    function setUp() external {
+        _loan = new MapleLoanInternalsHarness();
+    }
+
+    function test_proposeNewTerms(address refinancer_, uint256 newCollateralRequired_, uint256 newEndingPrincipal_, uint256 newInterestRate_) external {
+        // which refinance parameters? (permutations)
+        // what are the range constraints for each parameter type?
+
+        // what if refinancer is address(0)?
+        // special case if call array is empty?
+
+        bytes[] memory data = new bytes[](3);
+        data[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", newCollateralRequired_);
+        data[1] = abi.encodeWithSignature("setEndingPrincipal(uint256)",    newEndingPrincipal_);
+        data[2] = abi.encodeWithSignature("setInterestRate(uint256)",       newInterestRate_);
+
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, data);
+        assertEq(proposedRefinanceCommitment, keccak256(abi.encode(refinancer_, data)));
+    }
+
+    function test_proposeNewTerms2(address refinancer_, bytes[] calldata calls_) external {
+        bytes32 proposedRefinanceCommitment = _loan.proposeNewTerms(refinancer_, calls_);
+        assertEq(proposedRefinanceCommitment, calls_.length != 0 ? keccak256(abi.encode(refinancer_, calls_)) : bytes32(0));
+
+        if (calls_.length != 0) {
+            emit log_named_bytes32("DO NOT REDEEM", proposedRefinanceCommitment);
+            assertTrue(false);
+        }
+    }
+}
+
 // TODO: MapleLoanInternals_AcceptNewTermsTests
 
 // TODO: MapleLoanInternals_InitializeTests
