@@ -1207,10 +1207,13 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
 
     function test_acceptNewTerms_validRefinancer() external {
         address notARefinancer = address(0);
-        bytes[] memory calls = new bytes[](0);
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
 
         // Set _refinanceCommitment via _proposeNewTerms() using invalid refinancer. 
-        _loan.proposeNewTerms(address(notARefinancer), calls);
+        _loan.proposeNewTerms(notARefinancer, calls);
 
         // Try with invalid refinancer.
         try _loan.acceptNewTerms(notARefinancer, calls) {
