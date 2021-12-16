@@ -8,6 +8,8 @@ import { MapleLoanInternalsHarness } from "./harnesses/MapleLoanInternalsHarness
 
 import { LenderMock, MapleGlobalsMock, MockFactory } from "./mocks/Mocks.sol";
 
+import { Refinancer } from "../Refinancer.sol";
+
 contract MapleLoanInternals_GetPaymentBreakdownTests is TestUtils {
 
     address internal _loan;
@@ -1193,7 +1195,40 @@ contract MapleLoanInternals_GetCollateralRequiredForTests is TestUtils {
 
 }
 
-// TODO: MapleLoanInternals_AcceptNewTermsTests
+contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
+
+    MapleLoanInternalsHarness internal _loan;
+    Refinancer                internal _refinancer;
+
+    function setUp() external {
+        _loan = new MapleLoanInternalsHarness();
+        _refinancer = new Refinancer();
+    }
+
+    function test_acceptNewTerms_validRefinancer() external {
+        address notARefinancer = address(0);
+        bytes[] memory calls = new bytes[](0);
+
+        // Set _refinanceCommitment via _proposeNewTerms() using invalid refinancer. 
+        _loan.proposeNewTerms(address(notARefinancer), calls);
+
+        // Try with invalid refinancer.
+        try _loan.acceptNewTerms(notARefinancer, calls) {
+            assertTrue(false, "acceptNewTerms() used an invalid refinancer.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:ANT:INVALID_REFINANCER");
+        }
+
+        // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer. 
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        // Try again with valid refinancer.
+        try _loan.acceptNewTerms(address(_refinancer), calls) {
+        } catch {
+            assertTrue(false, "Valid refinancer is invalid.");
+        }
+    }
+}
 
 // TODO: MapleLoanInternals_InitializeTests
 
