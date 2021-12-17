@@ -1231,6 +1231,33 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
             assertTrue(false, "Valid refinancer is invalid.");
         }
     }
+
+    function test_acceptNewTerms_emptyCallsArray() external {
+        address notARefinancer = address(0);
+        // Empty calls array in _proposeNewTerms() always resets _refinanceCommitment to bytes32(0).
+        // _acceptNewTerms() will never accept a 0-valued _refinanceCommitment, so any call to it should fail.
+        bytes[] memory calls = new bytes[](0);
+
+        // Set _refinanceCommitment via _proposeNewTerms() using invalid refinancer and empty calls array.
+        _loan.proposeNewTerms(notARefinancer, calls);
+
+        // Try with invalid refinancer.
+        try _loan.acceptNewTerms(notARefinancer, calls) {
+            assertTrue(false, "acceptNewTerms() used a 0-valued _refinanceCommitment.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
+        }
+
+        // Set _refinanceCommitment via _proposeNewTerms() using valid refinancer and empty calls array.
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        // Try again with valid refinancer.
+        try _loan.acceptNewTerms(address(_refinancer), calls) {
+            assertTrue(false, "acceptNewTerms() used a 0-valued _refinanceCommitment.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
+        }
+    }
 }
 
 // TODO: MapleLoanInternals_InitializeTests
