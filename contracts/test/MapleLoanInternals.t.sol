@@ -1232,7 +1232,7 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         }
     }
 
-    function test_acceptNewTerms_emptyCallsArray() external {
+    function test_acceptNewTerms_commitmentMismatch_emptyCallsArray() external {
         address notARefinancer = address(0);
         // Empty calls array in _proposeNewTerms() always resets _refinanceCommitment to bytes32(0).
         // _acceptNewTerms() will never accept a 0-valued _refinanceCommitment, so any call to it should fail.
@@ -1254,6 +1254,44 @@ contract MapleLoanInternals_AcceptNewTermsTests is TestUtils {
         // Try again with valid refinancer.
         try _loan.acceptNewTerms(address(_refinancer), calls) {
             assertTrue(false, "acceptNewTerms() used a 0-valued _refinanceCommitment.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
+        }
+    }
+
+    function test_acceptNewTerms_commitmentMismatch_mismatchedCalls() external {
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
+
+        // Set _refinanceCommitment via _proposeNewTerms(). 
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        // Mutate the input parameter of the call to something different than proposed.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(456));
+
+        // Try to accept terms with different calls than proposed. 
+        try _loan.acceptNewTerms(address(_refinancer), calls) {
+            assertTrue(false, "acceptNewTerms() should have had a commitment mismatch.");
+        } catch Error(string memory reason) {
+            assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
+        }
+    }
+
+    function test_acceptNewTerms_commitmentMismatch_mismatchedRefinancer() external {
+        Refinancer differentRefinancer = new Refinancer();
+        bytes[] memory calls = new bytes[](1);
+
+        // Add a refinance call.
+        calls[0] = abi.encodeWithSignature("setCollateralRequired(uint256)", uint256(123));
+
+        // Set _refinanceCommitment via _proposeNewTerms() using correct refinancer. 
+        _loan.proposeNewTerms(address(_refinancer), calls);
+
+        // Try to accept terms with a different refinancer than proposed. 
+        try _loan.acceptNewTerms(address(differentRefinancer), calls) {
+            assertTrue(false, "acceptNewTerms() should have had a commitment mismatch.");
         } catch Error(string memory reason) {
             assertEq(reason, "MLI:ANT:COMMITMENT_MISMATCH");
         }
