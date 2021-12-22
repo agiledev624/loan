@@ -1303,7 +1303,37 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         assertEq(_loan.paymentsRemaining(),  paymentsRemaining_ - 1);
     }
 
-    // TODO: testFail_makePayment_insufficientAmount
+    function testFail_makePayment_insufficientAmount(
+        uint256 paymentInterval_,
+        uint256 paymentsRemaining_,
+        uint256 interestRate_,
+        uint256 principalRequested_,
+        uint256 endingPrincipal_
+    )
+        external
+    {
+        paymentInterval_    = constrictToRange(paymentInterval_,    100, 365 days);
+        paymentsRemaining_  = constrictToRange(paymentsRemaining_,  1,   50);
+        interestRate_       = constrictToRange(interestRate_,       0,   1.00e18);
+        principalRequested_ = constrictToRange(principalRequested_, 1,   MAX_TOKEN_AMOUNT);
+        endingPrincipal_    = constrictToRange(endingPrincipal_,    0,   principalRequested_);
+
+        setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
+
+        uint256 fundsForPayments = MAX_TOKEN_AMOUNT * 1500;
+
+        assertEq(_loan.drawableFunds(),      principalRequested_);
+        assertEq(_loan.claimableFunds(),     0);
+        assertEq(_loan.principal(),          principalRequested_);
+        assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
+        assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
+
+        _fundsAsset.mint(address(_loan), fundsForPayments);
+
+        ( uint256 principal, uint256 interest ) = _loan.makePayment();
+
+        uint256 totalPaid = principal + interest;
+    }
 
     // TODO: test_makePayment_overPay
 
