@@ -1308,7 +1308,8 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
         uint256 paymentsRemaining_,
         uint256 interestRate_,
         uint256 principalRequested_,
-        uint256 endingPrincipal_
+        uint256 endingPrincipal_,
+        uint256 fundsForPayment_ 
     )
         external
     {
@@ -1320,19 +1321,29 @@ contract MapleLoanInternals_MakePaymentTests is TestUtils {
 
         setupLoan(address(_loan), principalRequested_, paymentsRemaining_, paymentInterval_, interestRate_, endingPrincipal_);
 
-        uint256 fundsForPayments = MAX_TOKEN_AMOUNT * 1500;
+        // Get installment amount, and constrict payment amount to just under. 
+        ( uint256 expectedPrincipal, uint256 expectedInterest ) = _loan.getNextPaymentBreakdown();
+        uint256 installmentToPay = expectedPrincipal + expectedInterest;
+        uint256 shortedFundsForPayment_ = constrictToRange(fundsForPayment_, 0, installmentToPay - 1);
 
-        assertEq(_loan.drawableFunds(),      principalRequested_);
-        assertEq(_loan.claimableFunds(),     0);
-        assertEq(_loan.principal(),          principalRequested_);
-        assertEq(_loan.nextPaymentDueDate(), block.timestamp + paymentInterval_);
-        assertEq(_loan.paymentsRemaining(),  paymentsRemaining_);
+        _fundsAsset.mint(address(_loan), shortedFundsForPayment_);
+        
+        // Try to pay with insufficient amount, should underflow.
+        try _loan.makePayment() returns (uint256 principal_, uint256 interest_) {
+            assertTrue(false, "Funds should be insufficient and accounting should have underflowed.");
+        } catch {}
 
-        _fundsAsset.mint(address(_loan), fundsForPayments);
+        uint256 shortedAmount = installmentToPay - shortedFundsForPayment_;
 
-        ( uint256 principal, uint256 interest ) = _loan.makePayment();
+        // Mint remaining amount.
+        _fundsAsset.mint(address(_loan), shortedFundsForPayment_);
 
-        uint256 totalPaid = principal + interest;
+        // Pay off loan with exact amount.
+        ( uint256 actualPrincipal, uint256 actualInterest ) = _loan.makePayment();
+        uint256 actualInstallmentAmount = actualPrincipal + actualInterest;
+
+        assertEq(installmentToPay, actualInstallmentAmount);
+
     }
 
     // TODO: test_makePayment_overPay
