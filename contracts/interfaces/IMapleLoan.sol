@@ -23,6 +23,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function claimableFunds() external view returns (uint256 claimableFunds_);
 
     /**
+     *  @dev The annualized closing rate (APR), in units of 1e18, (i.e. 1% is 0.01e18).
+     */
+    function closingRate() external view returns (uint256 closingRate_);
+
+    /**
      *  @dev The amount of collateral posted against outstanding (drawn down) principal.
      */
     function collateral() external view returns (uint256 collateral_);
@@ -41,13 +46,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      *  @dev The amount of funds that have yet to be drawn down by the borrower.
      */
     function drawableFunds() external view returns (uint256 drawableFunds_);
-
-    /**
-     *  @dev The rate charged at early payments.
-     *       This value should be configured so that it is less expensive to close a loan with more than one payment remaining, but
-     *       more expensive to close it if on the last payment.
-     */
-    function earlyFeeRate() external view returns (uint256 earlyFeeRate_);
 
     /**
      *  @dev The portion of principal to not be paid down as part of payment installments, which would need to be paid back upon final payment.
@@ -71,16 +69,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function interestRate() external view returns (uint256 interestRate_);
 
     /**
-     *  @dev The rate charged at late payments.
-     */
-    function lateFeeRate() external view returns (uint256 lateFeeRate_);
-
-    /**
-     *  @dev The premium over the regular interest rate applied when paying late.
-     */
-    function lateInterestPremium() external view returns (uint256 lateInterestPremium_);
-
-    /**
      *  @dev The lender of the Loan.
      */
     function lender() external view returns (address lender_);
@@ -101,16 +89,6 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function paymentsRemaining() external view returns (uint256 paymentsRemaining_);
 
     /**
-     *  @dev The address of the pending borrower.
-     */
-    function pendingBorrower() external view returns (address pendingBorrower_);
-
-    /**
-     *  @dev The address of the pending lender.
-     */
-    function pendingLender() external view returns (address pendingLender_);
-
-    /**
      *  @dev The amount of principal owed (initially, the requested amount), which needs to be paid back.
      */
     function principal() external view returns (uint256 principal_);
@@ -120,32 +98,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
      */
     function principalRequested() external view returns (uint256 principalRequested_);
 
-    /**
-     *  @dev The factory address that deployed this contract (necessary for PoolV1 integration).
-     */
-    function superFactory() external view returns (address superFactory_);
-
     /********************************/
     /*** State Changing Functions ***/
     /********************************/
 
     /**
-     *  @dev Accept the borrower role, must be called by pendingBorrower.
-     */
-    function acceptBorrower() external;
-
-    /**
-     *  @dev Accept the lender role, must be called by pendingLender.
-     */
-    function acceptLender() external;
-
-    /**
      *  @dev   Accept the proposed terms ans trigger refinance execution
      *  @param refinancer_ The address of the refinancer contract.
      *  @param calls_      The encoded arguments to be passed to refinancer.
-     *  @param amount_     An amount to pull from the caller, if any.
      */
-    function acceptNewTerms(address refinancer_, bytes[] calldata calls_, uint256 amount_) external;
+    function acceptNewTerms(address refinancer_, bytes[] calldata calls_) external;
 
     /**
      *  @dev   Claim funds that have been paid (principal, interest, and late fees).
@@ -156,11 +118,10 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Repay all principal and fees and close a loan.
-     *  @param  amount_    An amount to pull from the caller, if any.
      *  @return principal_ The portion of the amount paid paying back principal.
      *  @return interest_  The portion of the amount paid paying interest fees.
      */
-    function closeLoan(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
+    function closeLoan() external returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Draw down funds from the loan.
@@ -173,25 +134,22 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     /**
      *  @dev    Lend funds to the loan/borrower.
      *  @param  lender_    The address to be registered as the lender.
-     *  @param  amount_    An amount to pull from the caller, if any.
      *  @return fundsLent_ The amount funded.
      */
-    function fundLoan(address lender_, uint256 amount_) external returns (uint256 fundsLent_);
+    function fundLoan(address lender_) external returns (uint256 fundsLent_);
 
     /**
      *  @dev    Make a payment to the loan.
-     *  @param  amount_    An amount to pull from the caller, if any.
      *  @return principal_ The portion of the amount paid paying back principal.
      *  @return interest_  The portion of the amount paid paying interest fees.
      */
-    function makePayment(uint256 amount_) external returns (uint256 principal_, uint256 interest_);
+    function makePayment() external returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Post collateral to the loan.
-     *  @param  amount_           An amount to pull from the caller, if any.
      *  @return collateralPosted_ The amount posted.
      */
-    function postCollateral(uint256 amount_) external returns (uint256 collateralPosted_);
+    function postCollateral() external returns (uint256 collateralPosted_);
 
     /**
      *  @dev   Propose new terms for refinance
@@ -209,10 +167,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
 
     /**
      *  @dev    Return funds to the loan (opposite of drawing down).
-     *  @param  amount_        An amount to pull from the caller, if any.
      *  @return fundsReturned_ The amount returned.
      */
-    function returnFunds(uint256 amount_) external returns (uint256 fundsReturned_);
+    function returnFunds() external returns (uint256 fundsReturned_);
 
     /**
      *  @dev    Repossess collateral, and any funds, for a loan in default.
@@ -223,16 +180,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function repossess(address destination_) external returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_);
 
     /**
-     *  @dev   Set the pendingBorrower to a new account.
-     *  @param pendingBorrower_ The address of the new pendingBorrower.
+     *  @dev   Set the borrower to a new account.
+     *  @param borrower_ The address of the new borrower.
      */
-    function setPendingBorrower(address pendingBorrower_) external;
+    function setBorrower(address borrower_) external;
 
     /**
-     *  @dev   Set the pendingLender to a new account.
-     *  @param pendingLender_ The address of the new pendingLender.
+     *  @dev   Set the lender to a new account.
+     *  @param lender_ The address of the new lender.
      */
-    function setPendingLender(address pendingLender_) external;
+    function setLender(address lender_) external;
 
     /**
      *  @dev    Remove some token (neither fundsAsset nor collateralAsset) from the loan.
@@ -260,24 +217,18 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents {
     function getAdditionalCollateralRequiredFor(uint256 drawdown_) external view returns (uint256 additionalCollateral_);
 
     /**
-     *  @dev    Get the breakdown of the total payment needed to satisfy an early repayment.
-     *  @return totalPrincipalAmount_ The portion of the total amount that will go towards principal.
-     *  @return totalInterestFees_    The portion of the total amount that will go towards interest fees.
+     *  @dev    Get the breakdown of the total payment needed to satisfy closing the loan.
+     *  @return principal_ The portion of the total amount that will go towards principal.
+     *  @return interest_  The portion of the total amount that will go towards interest fees.
      */
-    function getEarlyPaymentBreakdown() external view returns (
-        uint256 totalPrincipalAmount_,
-        uint256 totalInterestFees_
-    );
+    function getClosingPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy `numberOfPayments` payment installments.
-     *  @return totalPrincipalAmount_ The portion of the total amount that will go towards principal.
-     *  @return totalInterestFees_    The portion of the total amount that will go towards interest fees.
+     *  @return principal_ The portion of the total amount that will go towards principal.
+     *  @return interest_  The portion of the total amount that will go towards interest fees.
      */
-    function getNextPaymentBreakdown() external view returns (
-        uint256 totalPrincipalAmount_,
-        uint256 totalInterestFees_
-    );
+    function getNextPaymentBreakdown() external view returns (uint256 principal_, uint256 interest_);
 
     /**
      *  @dev    Returns whether the protocol is paused.

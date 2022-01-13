@@ -11,7 +11,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
         address[2] memory assets_,
         uint256[3] memory termDetails_,
         uint256[3] memory amounts_,
-        uint256[4] memory rates_
+        uint256[2] memory rates_
     ) external pure returns (bytes memory encodedArguments_);
 
     function decodeArguments(bytes calldata encodedArguments_)
@@ -20,7 +20,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
             address[2] memory assets_,
             uint256[3] memory termDetails_,
             uint256[3] memory amounts_,
-            uint256[4] memory rates_
+            uint256[2] memory rates_
         );
 
 }
